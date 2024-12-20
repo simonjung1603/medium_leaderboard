@@ -1,33 +1,43 @@
-use dioxus::document;
-use dioxus::prelude::fc_to_builder;
-use dioxus::prelude::IntoDynNode;
-use dioxus::prelude::Readable;
-use dioxus::prelude::GlobalSignal;
-use dioxus::prelude::use_resource;
-use dioxus::prelude::Element;
-use dioxus::prelude::{ServerFnError};
-use dioxus::prelude::manganis;
-use dioxus::prelude::Asset;
-use dioxus::prelude::server;
-use dioxus::prelude::server_fn;
-use dioxus::prelude::{asset, rsx};
-use dioxus::prelude::component;
+use dioxus::{
+    prelude::manganis,
+    prelude::{ServerFnError},
+    prelude::Element,
+    prelude::use_resource,
+    prelude::GlobalSignal,
+    prelude::Readable,
+    prelude::IntoDynNode,
+    prelude::fc_to_builder,
+    document,
+    prelude::Asset,
+    prelude::server,
+    prelude::server_fn,
+    prelude::{asset, rsx},
+    prelude::component,
+    prelude::dioxus_core,
+    prelude::dioxus_elements,
+};
 use self::models::*;
 use anyhow::anyhow;
-use dioxus::prelude::dioxus_core;
-use dioxus::prelude::dioxus_elements;
-use std::fmt::Debug;
-use std::sync::Arc;
-use std::{env};
+use std::{
+    fmt::Debug,
+    sync::Arc,
+    env,
+};
 
 #[cfg(feature = "server")]
 use {
-    diesel::r2d2,
-    diesel::r2d2::{ConnectionManager, Pool},
-    diesel::{QueryDsl, RunQueryDsl, SelectableHelper, pg::PgConnection, ExpressionMethods},
+    diesel::{
+        r2d2,
+        r2d2::{ConnectionManager, Pool},
+        QueryDsl,
+        RunQueryDsl,
+        SelectableHelper,
+        pg::PgConnection,
+        ExpressionMethods,
+    },
     dioxus::prelude::{
         extract,
-        FromContext
+        FromContext,
     },
     diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness},
 };
@@ -45,11 +55,12 @@ const FAVICON: Asset = asset!("/assets/favicon.ico");
 
 #[cfg(feature = "server")]
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+
 #[cfg(feature = "server")]
-pub fn init_db_connection(connection_string: &str) -> anyhow::Result<r2d2::Pool<ConnectionManager<PgConnection>>>{
+pub fn init_db_connection(connection_string: &str) -> anyhow::Result<r2d2::Pool<ConnectionManager<PgConnection>>> {
     let manager = diesel::r2d2::ConnectionManager::<PgConnection>::new(connection_string);
     let pool = r2d2::Pool::builder().build(manager)?;
-    if let Err(err) = pool.get()?.run_pending_migrations(MIGRATIONS){
+    if let Err(err) = pool.get()?.run_pending_migrations(MIGRATIONS) {
         return Err(anyhow!("Error running migrations: {}", err.to_string()));
     }
     Ok(pool)
