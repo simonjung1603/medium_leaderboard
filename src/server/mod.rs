@@ -33,7 +33,7 @@ async fn update_rss(pool: &r2d2::Pool<ConnectionManager<PgConnection>>) -> anyho
             }
             Some(guid) => {
                 tracing::info!("Got guid: {}", guid);
-                if let Ok(_) = submissions.find(&guid).first::<Submission>(&mut connection) {
+                if submissions.find(&guid).first::<Submission>(&mut connection).is_ok() {
                     tracing::info!("Submission for guid {} already present in db.", guid);
                     continue;
                 }
@@ -54,7 +54,7 @@ async fn update_rss(pool: &r2d2::Pool<ConnectionManager<PgConnection>>) -> anyho
 }
 
 async fn update_story_details(
-    pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
+    _pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
 ) -> anyhow::Result<()> {
     tracing::info!("Updating all story details.");
 
@@ -144,7 +144,7 @@ async fn fetch_story_details(id: &str) -> anyhow::Result<Submission> {
 }
 
 async fn update_claps(
-    pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
+    _pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
 ) -> anyhow::Result<()> {
     tracing::info!("Updating all clap counts");
 

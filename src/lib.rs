@@ -14,36 +14,22 @@ use dioxus::prelude::{asset, rsx};
 use dioxus::prelude::component;
 use self::models::*;
 use anyhow::anyhow;
-use dioxus::dioxus_core::SpawnIfAsync;
-use dioxus::logger::tracing;
-use dioxus::prelude::server_fn::serde::Deserialize;
 use dioxus::prelude::dioxus_core;
 use dioxus::prelude::dioxus_elements;
-use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::Method;
-use rss::Channel;
-use std::collections::HashMap;
 use std::fmt::Debug;
-use std::future::Future;
 use std::sync::Arc;
-use std::time::Duration;
-use std::{env, fs};
+use std::{env};
 
 #[cfg(feature = "server")]
 use {
-    diesel::associations::HasTable,
     diesel::r2d2,
     diesel::r2d2::{ConnectionManager, Pool},
-    diesel::{prelude, Connection, QueryDsl, RunQueryDsl, SelectableHelper, pg::PgConnection, ExpressionMethods},
+    diesel::{QueryDsl, RunQueryDsl, SelectableHelper, pg::PgConnection, ExpressionMethods},
     dioxus::prelude::{
         extract,
-        FromContext,
-        DioxusRouterExt,
-        ServeConfigBuilder
+        FromContext
     },
     diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness},
-    diesel::{Insertable, NotFound},
-    dotenvy::dotenv,
 };
 
 pub type ContextProviders = Arc<Vec<Box<(dyn Fn() -> Box<(dyn std::any::Any)> + Send + Sync)>>>;
@@ -56,15 +42,13 @@ mod schema;
 pub mod server;
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
-const MAIN_CSS: Asset = asset!("/assets/styling/main.css");
-const BORDER: Asset = asset!("/assets/border.png");
 
 #[cfg(feature = "server")]
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
 #[cfg(feature = "server")]
 pub fn init_db_connection(connection_string: &str) -> anyhow::Result<r2d2::Pool<ConnectionManager<PgConnection>>>{
     let manager = diesel::r2d2::ConnectionManager::<PgConnection>::new(connection_string);
-    let mut pool = r2d2::Pool::builder().build(manager)?;
+    let pool = r2d2::Pool::builder().build(manager)?;
     if let Err(err) = pool.get()?.run_pending_migrations(MIGRATIONS){
         return Err(anyhow!("Error running migrations: {}", err.to_string()));
     }
@@ -120,7 +104,7 @@ pub fn App() -> Element {
                                 }
                             }
                         tbody{
-                            for (i, submission) in submission_elements.into_iter().enumerate(){
+                            for (i, submission) in submission_elements.iter().enumerate(){
                                 tr{
                                     th{
                                         {format!("{}.", i+1)}

@@ -3,7 +3,6 @@ use dioxus::logger::tracing;
 use {
     std::env,
  std::sync::Arc,
- axum::ServiceExt,
  dioxus::fullstack::ServeConfigBuilder,
  dioxus::prelude::DioxusRouterExt,
  dioxus_cli_config::fullstack_address_or_localhost,
