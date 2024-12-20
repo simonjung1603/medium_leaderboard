@@ -46,7 +46,7 @@ use {
     dotenvy::dotenv,
 };
 
-use components::{Card, Echo, Hero};
+pub type ContextProviders = Arc<Vec<Box<(dyn Fn() -> Box<(dyn std::any::Any)> + Send + Sync)>>>;
 
 mod components;
 mod models;
@@ -89,21 +89,12 @@ async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
 #[component]
 pub fn App() -> Element {
     let submission_elements = use_resource(get_all_submissions);
-    // Build cool things ✌️
     rsx! {
         // Global app resources
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: "https://cdnjs.cloudflare.com/ajax/libs/bulma/1.0.2/css/bulma.min.css" }
         script{src: "https://kit.fontawesome.com/98b204fec6.js", crossorigin:"anonymous"}
 
-        /*
-        <section class="hero is-primary">
-  <div class="hero-body">
-    <p class="title">Primary hero</p>
-    <p class="subtitle">Primary subtitle</p>
-  </div>
-</section>
-         */
         section{class:"hero has-background-primary-dark",
             div{class:"hero-body",
                 p{class:"title", "Transformation"}
@@ -156,32 +147,3 @@ pub fn App() -> Element {
         }
     }
 }
-
-/*
-div{class: "columns is-centered",
-                div{class: "column is-half",
-                    Card{}
-                }
-            }
-            br{}
-            br{}
-            div{class: "columns is-centered is-8",
-                div{class: "column is-one-third",
-                    Card{}
-                }
-                div{class: "column is-one-third",
-                    Card{}
-                }
-            }
-            br{}
-            br{}
-            div{class: "grid is-col-min-12 is-gap-6",
-                Card{}
-                Card{}
-                Card{}
-                Card{}
-                Card{}
-                Card{}
-                Card{}
-            }
- */

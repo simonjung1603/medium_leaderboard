@@ -61,6 +61,7 @@ async fn update_story_details(
     Ok(())
 }
 
+#[allow(non_snake_case, unused)]
 async fn fetch_story_details(id: &str) -> anyhow::Result<Submission> {
     tracing::info!("Fetching details for guid {}.", id);
 
