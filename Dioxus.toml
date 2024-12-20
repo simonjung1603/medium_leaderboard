@@ -12,7 +12,7 @@ title = "medium_leaderboard"
 [web.resource]
 
 # Additional CSS style files
-style = ["https://cdnjs.cloudflare.com/ajax/libs/bulma/1.0.2/css/bulma.min.css"]
+style = []
 
 # Additional JavaScript files
 script = []

@@ -1,11 +1,24 @@
-#![feature(duration_constructors)]
-
+use dioxus::document;
+use dioxus::prelude::fc_to_builder;
+use dioxus::prelude::IntoDynNode;
+use dioxus::prelude::Readable;
+use dioxus::prelude::GlobalSignal;
+use dioxus::prelude::use_resource;
+use dioxus::prelude::Element;
+use dioxus::prelude::{ServerFnError};
+use dioxus::prelude::manganis;
+use dioxus::prelude::Asset;
+use dioxus::prelude::server;
+use dioxus::prelude::server_fn;
+use dioxus::prelude::{asset, rsx};
+use dioxus::prelude::component;
 use self::models::*;
 use anyhow::anyhow;
 use dioxus::dioxus_core::SpawnIfAsync;
 use dioxus::logger::tracing;
 use dioxus::prelude::server_fn::serde::Deserialize;
-use dioxus::prelude::*;
+use dioxus::prelude::dioxus_core;
+use dioxus::prelude::dioxus_elements;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Method;
 use rss::Channel;
@@ -21,7 +34,14 @@ use {
     diesel::associations::HasTable,
     diesel::r2d2,
     diesel::r2d2::{ConnectionManager, Pool},
-    diesel::{prelude, Connection, QueryDsl, RunQueryDsl, SelectableHelper, SqliteConnection, ExpressionMethods},
+    diesel::{prelude, Connection, QueryDsl, RunQueryDsl, SelectableHelper, pg::PgConnection, ExpressionMethods},
+    dioxus::prelude::{
+        extract,
+        FromContext,
+        DioxusRouterExt,
+        ServeConfigBuilder
+    },
+    diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness},
     diesel::{Insertable, NotFound},
     dotenvy::dotenv,
 };
@@ -33,50 +53,28 @@ mod models;
 #[cfg(feature = "server")]
 mod schema;
 #[cfg(feature = "server")]
-mod server;
+pub mod server;
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/styling/main.css");
 const BORDER: Asset = asset!("/assets/border.png");
 
 #[cfg(feature = "server")]
-#[shuttle_runtime::main]
-async fn main() {
-    dioxus::logger::initialize_default();
-    dotenv().ok();
-
-    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set.");
-    let manager = diesel::r2d2::ConnectionManager::<SqliteConnection>::new(db_url);
-    let mut pool = r2d2::Pool::builder()
-        .build(manager)
-        .expect("Error connecting to db.");
-
-    server::setup_scheduled_tasks(pool.clone());
-
-    let context_providers: Arc<Vec<Box<(dyn Fn() -> Box<(dyn std::any::Any)> + Send + Sync)>>> =
-        Arc::new(vec![Box::new(move || Box::new(pool.clone()))]);
-
-    let address = dioxus_cli_config::fullstack_address_or_localhost();
-    let router = axum::Router::new()
-        .serve_dioxus_application(
-            ServeConfigBuilder::default().context_providers(context_providers),
-            App,
-        )
-        .into_make_service();
-    let listener = tokio::net::TcpListener::bind(address).await.unwrap();
-
-    axum::serve(listener, router).await.unwrap();
-}
-
-#[cfg(not(feature = "server"))]
-fn main() {
-    dioxus::launch(App);
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("migrations");
+#[cfg(feature = "server")]
+pub fn init_db_connection(connection_string: &str) -> anyhow::Result<r2d2::Pool<ConnectionManager<PgConnection>>>{
+    let manager = diesel::r2d2::ConnectionManager::<PgConnection>::new(connection_string);
+    let mut pool = r2d2::Pool::builder().build(manager)?;
+    if let Err(err) = pool.get()?.run_pending_migrations(MIGRATIONS){
+        return Err(anyhow!("Error running migrations: {}", err.to_string()));
+    }
+    Ok(pool)
 }
 
 #[server(GetAllSubmissions)]
 async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
     use crate::schema::submissions::dsl::*;
-    let FromContext::<Pool<ConnectionManager<SqliteConnection>>>(pool) = extract().await?;
+    let FromContext::<Pool<ConnectionManager<PgConnection>>>(pool) = extract().await?;
     let mut connection = pool.get()?;
     let all_submissions = submissions
         .select(Submission::as_select()).order_by(clap_count.desc())
@@ -89,7 +87,7 @@ async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
 }
 
 #[component]
-fn App() -> Element {
+pub fn App() -> Element {
     let submission_elements = use_resource(get_all_submissions);
     // Build cool things ✌️
     rsx! {

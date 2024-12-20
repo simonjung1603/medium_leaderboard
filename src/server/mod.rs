@@ -2,13 +2,13 @@ use crate::models::Submission;
 use anyhow::anyhow;
 use axum::http::{HeaderMap, HeaderValue};
 use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::{associations::HasTable, r2d2, Insertable, QueryDsl, RunQueryDsl, SqliteConnection};
+use diesel::{associations::HasTable, r2d2, Insertable, QueryDsl, RunQueryDsl, pg::PgConnection};
 use dioxus::logger::tracing;
 use rss::Channel;
 use serde::Deserialize;
 use std::time::Duration;
 
-async fn update_rss(pool: &r2d2::Pool<ConnectionManager<SqliteConnection>>) -> anyhow::Result<()> {
+async fn update_rss(pool: &r2d2::Pool<ConnectionManager<PgConnection>>) -> anyhow::Result<()> {
     tracing::info!("Fetching rss feed.");
 
     use crate::schema::submissions::dsl::submissions;
@@ -54,7 +54,7 @@ async fn update_rss(pool: &r2d2::Pool<ConnectionManager<SqliteConnection>>) -> a
 }
 
 async fn update_story_details(
-    pool: &r2d2::Pool<ConnectionManager<SqliteConnection>>,
+    pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
 ) -> anyhow::Result<()> {
     tracing::info!("Updating all story details.");
 
@@ -143,17 +143,17 @@ async fn fetch_story_details(id: &str) -> anyhow::Result<Submission> {
 }
 
 async fn update_claps(
-    pool: &r2d2::Pool<ConnectionManager<SqliteConnection>>,
+    pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
 ) -> anyhow::Result<()> {
     tracing::info!("Updating all clap counts");
 
     Ok(())
 }
 
-pub fn setup_scheduled_tasks(pool: Pool<ConnectionManager<SqliteConnection>>) {
-    let mut rss_timer = tokio::time::interval(Duration::from_hours(1));
-    let mut details_timer = tokio::time::interval(Duration::from_days(1));
-    let mut claps_timer = tokio::time::interval(Duration::from_mins(10));
+pub fn setup_scheduled_tasks(pool: Pool<ConnectionManager<PgConnection>>) {
+    let mut rss_timer = tokio::time::interval(Duration::from_secs(60*60));
+    let mut details_timer = tokio::time::interval(Duration::from_secs(60*60*24));
+    let mut claps_timer = tokio::time::interval(Duration::from_secs(60*15));
 
     tokio::spawn(async move {
         loop {

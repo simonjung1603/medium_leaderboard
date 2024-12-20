@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "server", derive(Queryable, Selectable, Insertable))]
 #[cfg_attr(feature = "server", diesel(table_name = crate::schema::submissions))]
-#[cfg_attr(feature = "server", diesel(check_for_backend(diesel::sqlite::Sqlite)))]
+#[cfg_attr(feature = "server", diesel(check_for_backend(diesel::pg::Pg)))]
 pub struct Submission {
     pub guid: String,
     pub realname: String,
