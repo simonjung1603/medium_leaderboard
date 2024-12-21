@@ -1,20 +1,6 @@
 use dioxus::{
-    prelude::manganis,
-    prelude::{ServerFnError},
-    prelude::Element,
-    prelude::use_resource,
-    prelude::GlobalSignal,
-    prelude::Readable,
-    prelude::IntoDynNode,
-    prelude::fc_to_builder,
+    prelude::*,
     document,
-    prelude::Asset,
-    prelude::server,
-    prelude::server_fn,
-    prelude::{asset, rsx},
-    prelude::component,
-    prelude::dioxus_core,
-    prelude::dioxus_elements,
 };
 use self::models::*;
 use anyhow::anyhow;

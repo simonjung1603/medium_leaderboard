@@ -1,2 +1,2 @@
-dx build --release --bin standalone --platform web
-mv /app/target/dx/standalone/release/web/public public
+dx build --release --platform web
+mv /app/target/dx/medium_leaderboard/release/web/public public
