@@ -1,3 +1,5 @@
+use chrono::Local;
+use chrono::DateTime;
 use dioxus::{
     prelude::*,
     document,
@@ -12,6 +14,11 @@ use std::{
 
 #[cfg(feature = "server")]
 use {
+    std::ops::Add,
+    chrono::TimeDelta,
+    diesel::data_types::PgTimestamp,
+    diesel::QueryResult,
+    diesel::sql_types::Timestamptz,
     diesel::{
         r2d2,
         r2d2::{ConnectionManager, Pool},
@@ -62,14 +69,33 @@ async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
         .load(&mut connection)
         .expect("Error loading submissions.");
 
-    dbg!(&all_submissions);
-
     Ok(all_submissions)
+}
+
+#[server(GetLatestUpdateTime)]
+async fn get_latest_and_next_update_time() -> Result<(DateTime<Local>, DateTime<Local>), ServerFnError> {
+    use crate::schema::submissions::dsl::*;
+    let FromContext::<Pool<ConnectionManager<PgConnection>>>(pool) = extract().await?;
+    let mut connection = pool.get()?;
+
+    let latest_update_time = match submissions.select(clap_count_last_updated_at).order_by(clap_count_last_updated_at.desc()).first::<chrono::DateTime<chrono::Local>>(&mut connection) {
+        Ok(db_time) => chrono::DateTime::from(db_time),
+        Err(_) => Local::now()
+    };
+
+    Ok((latest_update_time, latest_update_time.add(TimeDelta::minutes(15))))
 }
 
 #[component]
 pub fn App() -> Element {
     let submission_elements = use_resource(get_all_submissions);
+    let latest_update_time = use_resource(get_latest_and_next_update_time);
+    let time_fmt = "%H:%M";
+    let (latest, next) = match &*latest_update_time.read_unchecked() {
+        None => ("...".to_string(), "...".to_string()),
+        Some(Ok((latest, next))) => (latest.format(time_fmt).to_string(), next.format(time_fmt).to_string()),
+        Some(Err(err)) => ("---".to_string(), "---".to_string()),
+    };
     rsx! {
         // Global app resources
         document::Link { rel: "icon", href: FAVICON }
@@ -78,9 +104,29 @@ pub fn App() -> Element {
 
         section{class:"hero has-background-primary-dark",
             div{class:"hero-body",
-                p{class:"title", "Transformation"}
-                p{class:"subtitle",
-                    p{"A " em{"My Fair Lighthouse"} " writing contest"}
+                div{class: "columns is-vcentered",
+                    div{class: "column",
+                        p{class:"title", "Transformation"}
+                        p{class:"subtitle",
+                            p{"A " em{"My Fair Lighthouse"} " writing contest"}
+                        }
+                    }
+                    div{class: "column is-two-fifth is-pulled-right is-flex is-justify-content-end",
+                        table{class: "table has-text-weight-light has-background-primary-dark is-size-7 is-bordered is-narrow",
+                            tr{
+                                td{"Version"}
+                                td{"0.0.1"}
+                            }
+                            tr{
+                                td{"Claps last updated"}
+                                td{{latest}}
+                            }
+                            tr{
+                                td{"Next scheduled update"}
+                                td{{next}}
+                            }
+                        }
+                    }
                 }
             }
         }
