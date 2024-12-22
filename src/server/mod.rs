@@ -226,6 +226,14 @@ async fn update_claps(
                 tracing::error!("Update in submissions failed or affected multiple rows!");
             }
         }
+
+        if let Ok(1) = diesel::update(&submission)
+            .set(clap_count_last_updated_at.eq(chrono::Local::now()))
+            .execute(&mut connection) {
+            tracing::info!("Updated clap_count_last_updated_at.");
+        } else {
+            tracing::error!("Updating clap_count_last_updated_at failed.");
+        }
     }
 
     Ok(())
