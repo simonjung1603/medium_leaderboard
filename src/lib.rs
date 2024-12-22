@@ -157,7 +157,7 @@ pub fn App() -> Element {
         script{src: "https://kit.fontawesome.com/98b204fec6.js", crossorigin:"anonymous"}
         script{src: "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"}
 
-        section{class:"hero has-background-primary-dark",
+        section{class:"hero has-background-secondary",
             div{class:"hero-body",
                 div{class: "columns is-vcentered",
                     div{class: "column",
@@ -167,7 +167,7 @@ pub fn App() -> Element {
                         }
                     }
                     div{class: "column is-two-fifth is-pulled-right is-flex is-justify-content-end",
-                        table{class: "table has-text-weight-light has-background-primary-dark is-size-7 is-bordered is-narrow",
+                        table{class: "table has-text-weight-light has-background-secondary is-size-7 is-bordered is-narrow",
                             tr{
                                 td{"Version"}
                                 td{"0.0.1"}
