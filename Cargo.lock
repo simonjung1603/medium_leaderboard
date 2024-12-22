@@ -3296,6 +3296,7 @@ dependencies = [
  "shuttle-runtime",
  "shuttle-shared-db",
  "tokio",
+ "web-sys",
 ]
 
 [[package]]

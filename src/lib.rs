@@ -11,6 +11,7 @@ use std::{
     sync::Arc,
     env,
 };
+use web_sys::js_sys;
 
 #[cfg(feature = "server")]
 use {
@@ -96,11 +97,65 @@ pub fn App() -> Element {
         Some(Ok((latest, next))) => (latest.format(time_fmt).to_string(), next.format(time_fmt).to_string()),
         Some(Err(err)) => ("---".to_string(), "---".to_string()),
     };
+
+    use_memo(move || {
+        if let Some(Ok(subs)) = &*submission_elements.read_unchecked() {
+            let titles = subs.iter().map(|sub| if sub.title.chars().count() > 15 { format!("'{:.12}...'", sub.title) } else { format!("'{}'", sub.title) }).collect::<Vec<_>>().join(", ");
+            let counts = subs.iter().map(|sub| sub.clap_count.to_string()).collect::<Vec<_>>().join(", ");
+            js_sys::eval(&format!(r#"
+                const ctx = document.getElementById('my-chart').getContext('2d');
+                new Chart(ctx, {{
+                    type: 'bar',
+                    data: {{
+                        labels: [{}],
+                        datasets: [{{
+                            label: 'Amount of claps',
+                            data: [{}],
+                            backgroundColor: [
+                              'rgba(255, 99, 132, 0.2)',
+                              'rgba(255, 159, 64, 0.2)',
+                              'rgba(255, 205, 86, 0.2)',
+                              'rgba(75, 192, 192, 0.2)',
+                              'rgba(54, 162, 235, 0.2)',
+                              'rgba(153, 102, 255, 0.2)',
+                              'rgba(201, 203, 207, 0.2)'
+                            ],
+                            borderColor: [
+                              'rgb(255, 99, 132)',
+                              'rgb(255, 159, 64)',
+                              'rgb(255, 205, 86)',
+                              'rgb(75, 192, 192)',
+                              'rgb(54, 162, 235)',
+                              'rgb(153, 102, 255)',
+                              'rgb(201, 203, 207)'
+                            ],
+                        }}]
+                    }},
+                    options: {{
+                        plugins: {{
+                            legend: {{
+                                labels: {{
+                                    boxWidth: 0
+                                }}
+                            }}
+                        }},
+                        responsive: true,
+                        scales: {{
+                            y: {{ beginAtZero: true }}
+                        }},
+                    }}
+                }});
+            "#, titles, counts))
+                .expect("Failed to execute JavaScript");
+        }
+    });
+
     rsx! {
         // Global app resources
         document::Link { rel: "icon", href: FAVICON }
         document::Link { rel: "stylesheet", href: "https://cdnjs.cloudflare.com/ajax/libs/bulma/1.0.2/css/bulma.min.css" }
         script{src: "https://kit.fontawesome.com/98b204fec6.js", crossorigin:"anonymous"}
+        script{src: "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"}
 
         section{class:"hero has-background-primary-dark",
             div{class:"hero-body",
@@ -169,6 +224,15 @@ pub fn App() -> Element {
                         }
                     }
                 }
+                }
+            }
+        }
+
+        div{class: "container is-max-tablet box mt-6",
+            div {
+                id: "chart-container",
+                canvas {
+                    id: "my-chart",
                 }
             }
         }

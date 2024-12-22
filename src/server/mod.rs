@@ -156,7 +156,7 @@ async fn update_claps(
     let mut connection = pool.get()?;
 
     match submissions_table.select(clap_count_last_updated_at).order_by(clap_count_last_updated_at.desc()).first::<chrono::DateTime<chrono::Local>>(&mut connection) {
-        Ok(dateTime) => if chrono::Local::now().signed_duration_since(dateTime) < TimeDelta::minutes(15) {
+        Ok(dateTime) => if chrono::Local::now().signed_duration_since(dateTime) < TimeDelta::minutes(14) {
             tracing::info!("Checked within last 15 minutes, not checking again!");
             return Ok(());
         }
