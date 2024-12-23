@@ -211,7 +211,12 @@ pub fn App() -> Element {
                                         {submission.title.clone()}
                                     }
                                     td{
-                                        {format!("{} (@{})", submission.realname.clone(), submission.username.clone())}
+                                        a{
+                                            href: {format!("https://medium.com/@{}", submission.username.clone())},
+                                            target: "_blank",
+                                            rel: "noopener noreferrer",
+                                            {format!("@{}", submission.username.clone())}
+                                        }
                                     }
                                     td{
                                         {submission.clap_count.to_string()}
