@@ -1,5 +1,5 @@
-use dioxus::logger::tracing;
 use crate::server_functions::*;
+use dioxus::logger::tracing;
 use dioxus::prelude::*;
 use web_sys::js_sys;
 
@@ -87,7 +87,7 @@ pub fn App() -> Element {
             "#,
                 titles, counts
             ))
-                .expect("Failed to execute JavaScript");
+            .expect("Failed to execute JavaScript");
         }
     });
 

@@ -21,7 +21,8 @@ pub async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
 }
 
 #[server(GetLatestUpdateTime)]
-pub async fn get_latest_and_next_update_time() -> Result<(DateTime<Local>, DateTime<Local>), ServerFnError> {
+pub async fn get_latest_and_next_update_time(
+) -> Result<(DateTime<Local>, DateTime<Local>), ServerFnError> {
     use crate::schema::submissions::dsl::*;
     let FromContext::<DbPool>(pool) = extract().await?;
     let mut connection = pool.get()?;

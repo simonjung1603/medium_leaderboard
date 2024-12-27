@@ -56,7 +56,9 @@ async fn main() {
         standalone_setup(&connection_string)
             .expect("Failed to create dioxus router")
             .into_make_service(),
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 }
 
 #[cfg(feature = "shuttle")]

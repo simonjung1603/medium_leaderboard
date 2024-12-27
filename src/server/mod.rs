@@ -1,18 +1,18 @@
 mod graphql;
 
-use std::time::Duration;
+use crate::db::DbPool;
+use crate::models::{InsertClapHistory, InsertSubmission, Submission};
+use crate::server::graphql::clap_count_query::{ClapCountQuery, ClapCountResult};
+use crate::server::graphql::story_details_query::{PostPageQuery, PostPageResult};
+use crate::server::graphql::{GraphQlRequest, GRAPHQL_ENDPOINT};
 use anyhow::anyhow;
 use chrono::TimeDelta;
 use diesel::SelectableHelper;
+use diesel::{associations::HasTable, ExpressionMethods, Insertable, QueryDsl, RunQueryDsl};
 use dioxus::logger::tracing;
-use rss::Channel;
-use crate::db::DbPool;
-use crate::models::{InsertClapHistory, InsertSubmission, Submission};
-use crate::server::graphql::{GRAPHQL_ENDPOINT, GraphQlRequest};
-use crate::server::graphql::clap_count_query::{ClapCountQuery, ClapCountResult};
-use crate::server::graphql::story_details_query::{PostPageQuery, PostPageResult};
-use diesel::{QueryDsl, RunQueryDsl, Insertable, associations::HasTable, ExpressionMethods};
 use reqwest::{Method, Request};
+use rss::Channel;
+use std::time::Duration;
 
 async fn update_rss(pool: &DbPool) -> anyhow::Result<()> {
     use crate::schema::submissions::dsl;
@@ -62,9 +62,7 @@ async fn update_rss(pool: &DbPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn update_story_details(
-    _pool: &DbPool,
-) -> anyhow::Result<()> {
+async fn update_story_details(_pool: &DbPool) -> anyhow::Result<()> {
     tracing::info!("Updating all story details.");
 
     Ok(())
@@ -76,7 +74,9 @@ async fn fetch_story_details(postId: &str) -> anyhow::Result<InsertSubmission> {
 
     let response = reqwest::Client::new()
         .post(GRAPHQL_ENDPOINT)
-        .json(&vec![GraphQlRequest::from(PostPageQuery { post_id: postId })])
+        .json(&vec![GraphQlRequest::from(PostPageQuery {
+            post_id: postId,
+        })])
         .send()
         .await?
         .json::<PostPageResult>()
@@ -111,8 +111,8 @@ async fn fetch_story_details(postId: &str) -> anyhow::Result<InsertSubmission> {
 }
 
 async fn update_claps(pool: &DbPool) -> anyhow::Result<()> {
+    use crate::db::clap_history::dsl;
     use crate::db::submissions::dsl as dsls;
-    use crate::db::clap_history::dsl as dsl;
     let mut connection = pool.get()?;
 
     match dsls::submissions
@@ -130,7 +130,6 @@ async fn update_claps(pool: &DbPool) -> anyhow::Result<()> {
     }
     tracing::info!("Updating all clap counts");
 
-
     let submissions = dsls::submissions
         .select(Submission::as_select())
         .load(&mut connection)
@@ -141,7 +140,10 @@ async fn update_claps(pool: &DbPool) -> anyhow::Result<()> {
     for submission in submissions {
         let clap_count = client
             .post(GRAPHQL_ENDPOINT)
-            .json(&vec![GraphQlRequest::from(ClapCountQuery { post_id: &submission.guid, include_first_boosted_at: false })])
+            .json(&vec![GraphQlRequest::from(ClapCountQuery {
+                post_id: &submission.guid,
+                include_first_boosted_at: false,
+            })])
             .send()
             .await?
             .json::<ClapCountResult>()
@@ -169,8 +171,8 @@ async fn update_claps(pool: &DbPool) -> anyhow::Result<()> {
                 guid: submission.guid.clone(),
                 clap_count,
             }
-                .insert_into(dsl::clap_history)
-                .execute(&mut connection);
+            .insert_into(dsl::clap_history)
+            .execute(&mut connection);
 
             if let Ok(1) = affected_rows {
                 tracing::info!("Inserted into history.");

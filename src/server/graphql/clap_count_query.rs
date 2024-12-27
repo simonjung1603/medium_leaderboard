@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::server::graphql::{GraphQlRequest, GraphQlResponse};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
