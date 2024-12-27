@@ -1,6 +1,7 @@
+use serde::{Deserialize, Serialize};
+
 #[cfg(feature = "server")]
 use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "server", derive(Insertable))]

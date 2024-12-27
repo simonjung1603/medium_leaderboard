@@ -1,5 +1,8 @@
-pub mod submission;
-pub mod clap_history;
+pub mod clap_history_model;
+pub mod submission_model;
 
-pub use submission::*;
-pub use clap_history::*;
+pub use clap_history_model::*;
+pub use submission_model::*;
+
+#[cfg(feature = "server")]
+pub use diesel::prelude::*;

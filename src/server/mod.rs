@@ -1,24 +1,22 @@
-use std::ops::Sub;
-use crate::models::{InsertClapHistory, InsertSubmission, Submission};
+mod graphql;
+
+use std::time::Duration;
 use anyhow::anyhow;
-use axum::http::{HeaderMap, HeaderValue};
-use diesel::r2d2::{ConnectionManager, Pool};
-use diesel::{associations::HasTable, r2d2, Insertable, QueryDsl, RunQueryDsl, pg::PgConnection, SelectableHelper, ExpressionMethods, QueryResult};
+use chrono::TimeDelta;
+use diesel::SelectableHelper;
 use dioxus::logger::tracing;
 use rss::Channel;
-use serde::Deserialize;
-use std::time::Duration;
-use chrono::TimeDelta;
-use dioxus::prelude::ServerFnError;
-use crate::{get_all_submissions, schema};
-use crate::schema::clap_history::dsl::clap_history;
-use crate::schema::submissions::clap_count_last_updated_at;
-use crate::schema::submissions::dsl::{submissions as submissions_table};
+use crate::db::DbPool;
+use crate::models::{InsertClapHistory, InsertSubmission, Submission};
+use crate::server::graphql::{GRAPHQL_ENDPOINT, GraphQlRequest};
+use crate::server::graphql::clap_count_query::{ClapCountQuery, ClapCountResult};
+use crate::server::graphql::story_details_query::{PostPageQuery, PostPageResult};
+use diesel::{QueryDsl, RunQueryDsl, Insertable, associations::HasTable, ExpressionMethods};
+use reqwest::{Method, Request};
 
-async fn update_rss(pool: &r2d2::Pool<ConnectionManager<PgConnection>>) -> anyhow::Result<()> {
+async fn update_rss(pool: &DbPool) -> anyhow::Result<()> {
+    use crate::schema::submissions::dsl;
     tracing::info!("Fetching rss feed.");
-
-    use crate::schema::submissions::dsl::submissions;
 
     let response = reqwest::get("https://medium.com/feed/my-fair-lighthouse/tagged/mfl-contest")
         .await?
@@ -40,14 +38,18 @@ async fn update_rss(pool: &r2d2::Pool<ConnectionManager<PgConnection>>) -> anyho
             }
             Some(guid) => {
                 tracing::info!("Got guid: {}", guid);
-                if submissions.find(&guid).first::<Submission>(&mut connection).is_ok() {
+                if dsl::submissions
+                    .find(&guid)
+                    .first::<Submission>(&mut connection)
+                    .is_ok()
+                {
                     tracing::info!("Submission for guid {} already present in db.", guid);
                     continue;
                 }
                 let new_submission = fetch_story_details(&guid).await?;
 
                 let rows_affected = new_submission
-                    .insert_into(submissions::table())
+                    .insert_into(dsl::submissions::table())
                     .execute(&mut connection)?;
 
                 if rows_affected != 1 {
@@ -61,7 +63,7 @@ async fn update_rss(pool: &r2d2::Pool<ConnectionManager<PgConnection>>) -> anyho
 }
 
 async fn update_story_details(
-    _pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
+    _pool: &DbPool,
 ) -> anyhow::Result<()> {
     tracing::info!("Updating all story details.");
 
@@ -69,57 +71,15 @@ async fn update_story_details(
 }
 
 #[allow(non_snake_case, unused)]
-async fn fetch_story_details(id: &str) -> anyhow::Result<InsertSubmission> {
-    tracing::info!("Fetching details for guid {}.", id);
-
-    const POST_PAGE_QUERY: &str = r#"query PostPageQuery($postId: ID!) {postResult(id: $postId) {__typename\n ... on Post {id\n creator {id\n name\n username\n __typename}\n mediumUrl\n latestPublishedVersion\n latestPublishedAt\n clapCount\n title\n previewImage{id\n __typename}\n tags{\n id\n __typename}\n wordCount\n __typename}}}"#;
-
-    let body = format!(
-        r#"[{{"operationName": "PostPageQuery", "query": "{}", "variables": {{"postId": "{}"}}}}]"#,
-        POST_PAGE_QUERY, id
-    );
-
-    let mut headers = HeaderMap::new();
-    headers.insert("content-type", HeaderValue::from_static("application/json"));
-
-    #[derive(Deserialize, Debug)]
-    struct GraphQlResponse<T> {
-        data: T,
-    }
-    #[derive(Deserialize, Debug)]
-    struct PostPageQueryResponse {
-        postResult: PostResponse,
-    }
-    #[derive(Deserialize, Debug)]
-    struct PostResponse {
-        id: String,
-        creator: CreatorResponse,
-        mediumUrl: String,
-        latestPublishedVersion: String,
-        latestPublishedAt: i64,
-        clapCount: i32,
-        title: String,
-        previewImage: PreviewImageResponse,
-        wordCount: i32,
-    }
-    #[derive(Deserialize, Debug)]
-    struct CreatorResponse {
-        id: String,
-        name: String,
-        username: String,
-    }
-    #[derive(Deserialize, Debug)]
-    struct PreviewImageResponse {
-        id: String,
-    }
+async fn fetch_story_details(postId: &str) -> anyhow::Result<InsertSubmission> {
+    tracing::info!("Fetching details for guid {}.", postId);
 
     let response = reqwest::Client::new()
-        .post("https://medium.com/_/graphql")
-        .body(body)
-        .headers(headers)
+        .post(GRAPHQL_ENDPOINT)
+        .json(&vec![GraphQlRequest::from(PostPageQuery { post_id: postId })])
         .send()
         .await?
-        .json::<Vec<GraphQlResponse<PostPageQueryResponse>>>()
+        .json::<PostPageResult>()
         .await;
 
     if let Ok(response) = response {
@@ -133,84 +93,84 @@ async fn fetch_story_details(id: &str) -> anyhow::Result<InsertSubmission> {
             .next()
             .ok_or(anyhow!("Unexpected error reading graphql response"))?
             .data
-            .postResult;
+            .post_result;
         return Ok(InsertSubmission {
             guid: r.id,
             realname: r.creator.name,
             username: r.creator.username,
-            latest_published_version: r.latestPublishedVersion,
-            latest_published_at: r.latestPublishedAt,
-            clap_count: r.clapCount,
+            latest_published_version: r.latest_published_version,
+            latest_published_at: r.latest_published_at,
+            clap_count: r.clap_count,
             title: r.title,
-            img_id: r.previewImage.id,
-            word_count: r.wordCount,
+            img_id: r.preview_image.id,
+            word_count: r.word_count,
         });
     }
 
     Err(anyhow!("Error fetching response: {:?}", response))
 }
 
-async fn update_claps(
-    pool: &r2d2::Pool<ConnectionManager<PgConnection>>,
-) -> anyhow::Result<()> {
+async fn update_claps(pool: &DbPool) -> anyhow::Result<()> {
+    use crate::db::submissions::dsl as dsls;
+    use crate::db::clap_history::dsl as dsl;
     let mut connection = pool.get()?;
 
-    match submissions_table.select(clap_count_last_updated_at).order_by(clap_count_last_updated_at.desc()).first::<chrono::DateTime<chrono::Local>>(&mut connection) {
-        Ok(dateTime) => if chrono::Local::now().signed_duration_since(dateTime) < TimeDelta::minutes(14) {
-            tracing::info!("Checked within last 15 minutes, not checking again!");
-            return Ok(());
+    match dsls::submissions
+        .select(dsls::clap_count_last_updated_at)
+        .order_by(dsls::clap_count_last_updated_at.desc())
+        .first::<chrono::DateTime<chrono::Local>>(&mut connection)
+    {
+        Ok(date_time) => {
+            if chrono::Local::now().signed_duration_since(date_time) < TimeDelta::minutes(14) {
+                tracing::info!("Checked within last 15 minutes, not checking again!");
+                return Ok(());
+            }
         }
-        Err(err) => tracing::error!("Error fetching last update time: {}", err)
+        Err(err) => tracing::error!("Error fetching last update time: {}", err),
     }
     tracing::info!("Updating all clap counts");
 
-    const CLAP_COUNT_QUERY: &str = r#"query ClapCountQuery($postId: ID!, $includeFirstBoostedAt: Boolean!) {\n  postResult(id: $postId) {\n    __typename\n    ... on Post {\n      id\n      clapCount\n      firstBoostedAt @include(if: $includeFirstBoostedAt)\n      __typename\n    }\n  }\n}\n"#;
 
-    let mut headers = HeaderMap::new();
-    headers.insert("content-type", HeaderValue::from_static("application/json"));
-
-    #[derive(Deserialize, Debug)]
-    struct GraphQlResponse<T> {
-        data: T,
-    }
-    #[derive(Deserialize, Debug)]
-    struct PostPageQueryResponse {
-        postResult: PostResponse,
-    }
-    #[derive(Deserialize, Debug)]
-    struct PostResponse {
-        clapCount: i32,
-    }
-
-    let submissions = submissions_table
+    let submissions = dsls::submissions
         .select(Submission::as_select())
         .load(&mut connection)
         .expect("Error loading submissions.");
 
-    let mut client = reqwest::Client::new();
+    let client = reqwest::Client::new();
 
     for submission in submissions {
-        let body = format!(
-            r#"[{{"operationName":"ClapCountQuery","variables":{{"postId":"{}","includeFirstBoostedAt":false}},"query":"{}"}}]"#,
-            submission.guid, CLAP_COUNT_QUERY);
-
         let clap_count = client
-            .post("https://medium.com/_/graphql")
-            .body(body)
-            .headers(headers.clone())
+            .post(GRAPHQL_ENDPOINT)
+            .json(&vec![GraphQlRequest::from(ClapCountQuery { post_id: &submission.guid, include_first_boosted_at: false })])
             .send()
-            .await?.json::<Vec<GraphQlResponse<PostPageQueryResponse>>>().await?.into_iter().next()
-            .ok_or(anyhow!("Unexpected error reading clap_count graphql response"))?.data.postResult.clapCount;
+            .await?
+            .json::<ClapCountResult>()
+            .await?
+            .into_iter()
+            .next()
+            .ok_or(anyhow!(
+                "Unexpected error reading clap_count graphql response"
+            ))?
+            .data
+            .post_result
+            .clap_count;
 
         tracing::info!("{}: {}", submission.guid, clap_count);
 
         if clap_count != submission.clap_count {
-            tracing::info!("{}: {} --> {}", submission.title, submission.clap_count, clap_count);
+            tracing::info!(
+                "{}: {} --> {}",
+                submission.title,
+                submission.clap_count,
+                clap_count
+            );
 
             let affected_rows = InsertClapHistory {
                 guid: submission.guid.clone(),
                 clap_count,
-            }.insert_into(clap_history).execute(&mut connection);
+            }
+                .insert_into(dsl::clap_history)
+                .execute(&mut connection);
 
             if let Ok(1) = affected_rows {
                 tracing::info!("Inserted into history.");
@@ -219,8 +179,9 @@ async fn update_claps(
             }
 
             if let Ok(1) = diesel::update(&submission)
-                .set(schema::submissions::clap_count.eq(clap_count))
-                .execute(&mut connection) {
+                .set(dsls::clap_count.eq(clap_count))
+                .execute(&mut connection)
+            {
                 tracing::info!("Updated entry in submissions.");
             } else {
                 tracing::error!("Update in submissions failed or affected multiple rows!");
@@ -228,8 +189,9 @@ async fn update_claps(
         }
 
         if let Ok(1) = diesel::update(&submission)
-            .set(clap_count_last_updated_at.eq(chrono::Local::now()))
-            .execute(&mut connection) {
+            .set(dsls::clap_count_last_updated_at.eq(chrono::Local::now()))
+            .execute(&mut connection)
+        {
             tracing::info!("Updated clap_count_last_updated_at.");
         } else {
             tracing::error!("Updating clap_count_last_updated_at failed.");
@@ -239,7 +201,7 @@ async fn update_claps(
     Ok(())
 }
 
-pub fn setup_scheduled_tasks(pool: Pool<ConnectionManager<PgConnection>>) {
+pub fn setup_scheduled_tasks(pool: DbPool) {
     let mut rss_timer = tokio::time::interval(Duration::from_secs(60 * 60));
     let mut details_timer = tokio::time::interval(Duration::from_secs(60 * 60 * 24));
     let mut claps_timer = tokio::time::interval(Duration::from_secs(60 * 15));

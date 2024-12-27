@@ -27,7 +27,4 @@ diesel::table! {
 
 diesel::joinable!(clap_history -> submissions (guid));
 
-diesel::allow_tables_to_appear_in_same_query!(
-    clap_history,
-    submissions,
-);
+diesel::allow_tables_to_appear_in_same_query!(clap_history, submissions);
