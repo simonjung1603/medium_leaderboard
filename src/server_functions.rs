@@ -11,7 +11,7 @@ pub async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
     use crate::schema::submissions::dsl::*;
     let FromContext::<DbPool>(pool) = extract().await?;
     let mut connection = pool.get()?;
-    let all_submissions = submissions
+    let all_submissions = submissions.filter(username.ne_all(vec!["vilovshka", "flawrite"]))
         .select(Submission::as_select())
         .order_by(clap_count.desc())
         .load(&mut connection)
@@ -21,8 +21,7 @@ pub async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
 }
 
 #[server(GetLatestUpdateTime)]
-pub async fn get_latest_and_next_update_time(
-) -> Result<(DateTime<Local>, DateTime<Local>), ServerFnError> {
+pub async fn get_latest_and_next_update_time() -> Result<(DateTime<Local>, DateTime<Local>), ServerFnError> {
     use crate::schema::submissions::dsl::*;
     let FromContext::<DbPool>(pool) = extract().await?;
     let mut connection = pool.get()?;

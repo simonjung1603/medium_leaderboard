@@ -35,6 +35,7 @@ pub struct PostResponse {
     pub(crate) clap_count: i32,
     pub(crate) title: String,
     pub(crate) preview_image: PreviewImageResponse,
+    pub(crate) tags: Vec<TagResponse>,
     pub(crate) word_count: i32,
 }
 
@@ -50,5 +51,11 @@ pub struct CreatorResponse {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewImageResponse {
+    pub(crate) id: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TagResponse {
     pub(crate) id: String,
 }

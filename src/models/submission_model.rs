@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "server")]
 use diesel::prelude::*;
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "server", derive(Queryable, Selectable, Identifiable))]
 #[cfg_attr(feature = "server", diesel(table_name = crate::schema::submissions))]
 #[cfg_attr(feature = "server", diesel(primary_key(guid)))]
