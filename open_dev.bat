@@ -1,0 +1,1 @@
+"C:\Program Files\JetBrains\RustRover 2024.1\bin\rustrover64.exe"

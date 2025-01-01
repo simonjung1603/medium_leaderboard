@@ -5,12 +5,13 @@ use dioxus::logger::tracing;
 use dioxus::prelude::*;
 use web_sys::js_sys;
 use crate::components::leaderboard_table::*;
-use crate::models::Submission;
+use crate::models::{Category, Submission};
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 
 #[derive(Default, PartialEq, Clone)]
 pub struct SubmissionsByCategory {
+    pub unsorted: Vec<Submission>,
     pub poetry: Vec<Submission>,
     pub fiction: Vec<Submission>,
     pub essay: Vec<Submission>,
@@ -19,13 +20,15 @@ pub struct SubmissionsByCategory {
 #[component]
 pub fn App() -> Element {
     let submission_elements = use_resource(get_all_submissions);
+    let dragged_guid = use_signal(|| None);
 
     let submissions_by_category = use_memo(move || {
         if let Some(Ok(all_submissions)) = &*submission_elements.read_unchecked() {
             Some(SubmissionsByCategory {
-                poetry: all_submissions.iter().cloned().filter(|sub| sub.clap_count <= 150).collect(),
-                fiction: all_submissions.iter().cloned().filter(|sub| sub.clap_count > 150 && sub.clap_count < 300).collect(),
-                essay: all_submissions.iter().cloned().filter(|sub| sub.clap_count >= 300).collect(),
+                unsorted: all_submissions.iter().filter(|sub| sub.category == Category::None).cloned().collect(),
+                poetry: all_submissions.iter().filter(|sub| sub.category == Category::Poetry).cloned().collect(),
+                fiction: all_submissions.iter().filter(|sub| sub.category == Category::Fiction).cloned().collect(),
+                essay: all_submissions.iter().filter(|sub| sub.category == Category::PersonalEssay).cloned().collect(),
             })
         } else {
             None
@@ -54,28 +57,34 @@ pub fn App() -> Element {
             }
         }
 
-        div{class: "columns is-centered ml-6 mr-6",
-            div{class: "column is-one-third",
-                if let Some(Ok(elements)) = &*submission_elements.read_unchecked(){
-                    LeaderboardTable{
-                        title: "Poetry category standings",
-                        elements: elements.iter().cloned().filter(|sub| sub.clap_count <= 150).collect()
-                    }
+        if let Some(subs) = &*submissions_by_category.read_unchecked(){
+            if subs.unsorted.is_empty() == false{
+                LeaderboardTable{
+                    category: Category::None,
+                    elements: subs.unsorted.clone(),
+                    dragged_guid
                 }
             }
-            div{class: "column is-one-third",
-                if let Some(Ok(elements)) = &*submission_elements.read_unchecked(){
+            div{class: "columns is-centered ml-6 mr-6",
+                div{class: "column is-one-third",
                     LeaderboardTable{
-                        title: "Fiction category standings",
-                        elements: elements.iter().cloned().filter(|sub| sub.clap_count > 150 && sub.clap_count < 300).collect()
+                        category: Category::Poetry,
+                        elements: subs.poetry.clone(),
+                        dragged_guid
                     }
                 }
-            }
-            div{class: "column is-one-third",
-                if let Some(Ok(elements)) = &*submission_elements.read_unchecked(){
+                div{class: "column is-one-third",
                     LeaderboardTable{
-                        title: "Personal essay standings",
-                        elements: elements.iter().cloned().filter(|sub| sub.clap_count >= 300).collect()
+                        category: Category::Fiction,
+                        elements: subs.fiction.clone(),
+                        dragged_guid
+                    }
+                }
+                div{class: "column is-one-third",
+                    LeaderboardTable{
+                        category: Category::PersonalEssay,
+                        elements: subs.essay.clone(),
+                        dragged_guid
                     }
                 }
             }

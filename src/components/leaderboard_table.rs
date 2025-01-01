@@ -1,11 +1,33 @@
+use crate::server_functions::update_category;
 use dioxus::prelude::*;
-use crate::models::Submission;
-
+use dioxus::logger::tracing;
+use crate::models::{Category, Submission};
 
 #[component]
-pub fn LeaderboardTable(title: String, elements: Vec<Submission>) -> Element {
+pub fn LeaderboardTable(category: Category, elements: Vec<Submission>, dragged_guid: Signal<Option<String>>) -> Element {
     rsx! {
-            div{class: "title mt-6 has-text-centered", {title}}
+            div{class: "title mt-6 has-text-centered",
+                ondragover: |ev| ev.prevent_default(),
+                ondrop: move |ev| async move {
+                    tracing::info!("OnDrop: {:?}", ev);
+                    tracing::info!("guid: {:?}", dragged_guid);
+
+                    if let Some(guid) = dragged_guid(){
+                        tracing::info!("Calling backend");
+                        if let Err(err) = update_category(guid, category).await{
+                            tracing::error!("Got err: {}", err);
+                        }
+                    }
+
+                    dragged_guid.set(None);
+                },
+                {match category{
+                    Category::None => "Submissions need sorting",
+                    Category::Poetry => "Poetry submissions",
+                    Category::Fiction => "Fictions submissions",
+                    Category::PersonalEssay => "Personal essay submissions",
+                }}
+            }
             table{class: "table mt-6 is-bordered is-striped is-hoverable is-fullwidth",
                 thead{
                         tr{
@@ -17,9 +39,14 @@ pub fn LeaderboardTable(title: String, elements: Vec<Submission>) -> Element {
                         }
                     }
                 tbody{
-                    for (i, submission) in elements.iter().enumerate(){
+                    for (i, submission) in elements.iter().cloned().enumerate(){
                         tr{
                             draggable: true,
+                            ondragstart: move |ev| {
+                                dragged_guid.set(Some(submission.guid.clone()));
+                                tracing::info!("DragStart: {:?}", ev);
+                                tracing::info!("guid: {:?}", dragged_guid);
+                            },
                             th{
                                 {format!("{}.", i+1)}
                             }

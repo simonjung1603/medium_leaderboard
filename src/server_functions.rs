@@ -2,6 +2,8 @@ use crate::models::*;
 use chrono::{DateTime, Local, TimeDelta};
 use dioxus::prelude::*;
 use std::ops::Add;
+use anyhow::anyhow;
+use dioxus::logger::tracing;
 
 #[cfg(feature = "server")]
 use crate::db::*;
@@ -18,6 +20,21 @@ pub async fn get_all_submissions() -> Result<Vec<Submission>, ServerFnError> {
         .expect("Error loading submissions.");
 
     Ok(all_submissions)
+}
+
+#[server(UpdateCategory)]
+pub async fn update_category(update_guid: String, update_category: Category) -> Result<(), ServerFnError> {
+    use crate::schema::submissions::dsl::*;
+    let FromContext::<DbPool>(pool) = extract().await?;
+    let mut connection = pool.get()?;
+
+    if Ok(1) == diesel::update(submissions).filter(guid.eq(update_guid.clone())).set(category.eq(update_category)).execute(&mut connection) {
+        tracing::info!("Updated category for {} to {:?}.", update_guid, update_category);
+        return Ok(());
+    }
+
+    tracing::error!("Error updating category");
+    Err(ServerFnError::new("Error updating category"))
 }
 
 #[server(GetLatestUpdateTime)]

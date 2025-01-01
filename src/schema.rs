@@ -22,9 +22,13 @@ diesel::table! {
         word_count -> Int4,
         clap_count_last_updated_at -> Timestamptz,
         details_last_updated_at -> Timestamptz,
+        category -> Int2,
     }
 }
 
 diesel::joinable!(clap_history -> submissions (guid));
 
-diesel::allow_tables_to_appear_in_same_query!(clap_history, submissions);
+diesel::allow_tables_to_appear_in_same_query!(
+    clap_history,
+    submissions,
+);
