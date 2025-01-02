@@ -1,14 +1,16 @@
 use plotly::Plot;
-use plotly::Layout;
-use plotly::Bar;
+use plotly::layout::*;
+use plotly::traces::bar::*;
+use plotly::configuration::*;
 use plotly::color::Rgb;
 use plotly::layout::BarMode;
 use dioxus::logger::tracing;
 use crate::components::app::SubmissionsByCategory;
 use dioxus::prelude::*;
 use serde::Serialize;
-use web_sys::js_sys;
 use crate::models::Submission;
+#[cfg(feature = "web")]
+use web_sys::js_sys;
 
 #[derive(Serialize)]
 struct Chart {
@@ -122,21 +124,24 @@ pub fn ClapChart(id: String, submissions_by_category: Memo<Option<SubmissionsByC
             plot.add_trace(Bar::new(
                 subs.poetry.iter().map(|sub| sub.title.clone()).collect(),
                 subs.poetry.iter().map(|sub| sub.clap_count).collect(),
-            ).name("Poetry"));
+            ).name("Poetry").clip_on_axis(false));
             plot.add_trace(Bar::new(
                 subs.fiction.iter().map(|sub| sub.title.clone()).collect(),
                 subs.fiction.iter().map(|sub| sub.clap_count).collect(),
-            ).name("Fiction"));
+            ).name("Fiction").clip_on_axis(false));
             plot.add_trace(Bar::new(
                 subs.essay.iter().map(|sub| sub.title.clone()).collect(),
                 subs.essay.iter().map(|sub| sub.clap_count).collect(),
-            ).name("Personal Essay"));
+            ).name("Personal Essay").clip_on_axis(false));
 
             plot.set_layout(Layout::new()
                 .bar_mode(BarMode::Group)
                 .paper_background_color(Rgb::new(20, 22, 26))
                 .plot_background_color(Rgb::new(20, 22, 26))
+                .margin(Margin::new().bottom(200))
             );
+
+            plot.set_configuration(Configuration::default().display_mode_bar(DisplayModeBar::False));
 
             let value = plot_id.clone();
             spawn(async move {
@@ -146,9 +151,9 @@ pub fn ClapChart(id: String, submissions_by_category: Memo<Option<SubmissionsByC
     });
 
     rsx! {
-        div {class: "container box",
+        div {class: "box ml-6 mr-6",
             div {
-                id: id
+                id: id,
             }
         }
     }

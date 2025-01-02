@@ -1,5 +1,6 @@
 use dioxus::logger::tracing;
 use medium_leaderboard::components::app::App;
+use std::path::Path;
 use std::env;
 
 #[cfg(feature = "server")]
@@ -57,8 +58,8 @@ async fn main() {
             .expect("Failed to create dioxus router")
             .into_make_service(),
     )
-    .await
-    .unwrap();
+        .await
+        .unwrap();
 }
 
 #[cfg(feature = "shuttle")]

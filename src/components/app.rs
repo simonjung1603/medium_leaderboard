@@ -3,9 +3,10 @@ use crate::components::clap_chart::ClapChart;
 use crate::server_functions::*;
 use dioxus::logger::tracing;
 use dioxus::prelude::*;
-use web_sys::js_sys;
 use crate::components::leaderboard_table::*;
 use crate::models::{Category, Submission};
+#[cfg(feature = "web")]
+use web_sys::js_sys;
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 
