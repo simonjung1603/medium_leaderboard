@@ -19,20 +19,18 @@ pub fn ConfigInfoTable() -> Element {
     };
 
     rsx! {
-        div{class: "column is-two-fifth is-pulled-right is-flex is-justify-content-end",
-            table{class: "table has-text-weight-light has-background-secondary is-size-7 is-bordered is-narrow",
-                tr{
-                    td{"Version"}
-                    td{"0.0.1"}
-                }
-                tr{
-                    td{"Claps last updated"}
-                    td{{latest}}
-                }
-                tr{
-                    td{"Next scheduled update"}
-                    td{{next}}
-                }
+        table{class: "table table-hover table-striped table-sm",
+            tr{
+                td{"Version"}
+                td{"0.0.1"}
+            }
+            tr{
+                td{"Claps last updated"}
+                td{{latest}}
+            }
+            tr{
+                td{"Next scheduled update"}
+                td{{next}}
             }
         }
     }

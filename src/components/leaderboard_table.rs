@@ -6,7 +6,7 @@ use crate::models::{Category, Submission};
 #[component]
 pub fn LeaderboardTable(category: Category, elements: Vec<Submission>, dragged_guid: Signal<Option<String>>) -> Element {
     rsx! {
-            div{class: "title mt-6 has-text-centered",
+            div{class: "h1 text-center",
                 ondragover: |ev| ev.prevent_default(),
                 ondrop: move |ev| async move {
                     tracing::info!("OnDrop: {:?}", ev);
@@ -28,7 +28,7 @@ pub fn LeaderboardTable(category: Category, elements: Vec<Submission>, dragged_g
                     Category::PersonalEssay => "Personal essay submissions",
                 }}
             }
-            table{class: "table mt-6 is-bordered is-striped is-hoverable is-fullwidth",
+            table{class: "table mt-6 table-hover table-striped table-bordered",
                 thead{
                         tr{
                             th{"Rank"}
@@ -39,6 +39,7 @@ pub fn LeaderboardTable(category: Category, elements: Vec<Submission>, dragged_g
                         }
                     }
                 tbody{
+                    class: "table-group-divider",
                     for (i, submission) in elements.iter().cloned().enumerate(){
                         tr{
                             draggable: true,

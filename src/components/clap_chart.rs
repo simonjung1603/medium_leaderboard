@@ -151,7 +151,7 @@ pub fn ClapChart(id: String, submissions_by_category: Memo<Option<SubmissionsByC
     });
 
     rsx! {
-        div {class: "box ml-6 mr-6",
+        div {class: "box mx-6",
             div {
                 id: id,
             }
